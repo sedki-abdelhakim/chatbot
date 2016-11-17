@@ -21,23 +21,18 @@ var (
 
 	// sessions = {
 	//   "uuid1" = Session{
-	//     "history" = [
-	//       "Message 1",
-	//       "Message 2",
-	//       "Message 3",
-	//       ...
-	//     ]
+	//     "state" = int
 	//   },
 	//   ...
 	// }
 	sessions = map[string]Session{}
 
-	processor = sampleProcessor
+	processor = defaultProcessor
 )
 
 type (
 	// Session Holds info about a session
-	Session map[string][]string
+	Session map[string]int
 
 	// JSON Holds a JSON object
 	JSON map[string]interface{}
@@ -46,34 +41,9 @@ type (
 	Processor func(session Session, message string) (string, error)
 )
 
-func sampleProcessor(session Session, message string) (string, error) {
-	// Make sure a history key is defined in the session which points to a slice of strings
-	_, historyFound := session["history"]
-	if !historyFound {
-		session["history"] = []string{}
-	}
+func defaultProcessor(session Session, message string) (string, error) {
 
-	// Make sure the message is unique in history
-	for _, m := range session["history"] {
-		if strings.EqualFold(m, message) {
-			return "", fmt.Errorf("You've already ordered %s before!", message)
-		}
-	}
-
-	// Add the message in the parsed body to the messages in the session
-	session["history"] = append(session["history"], message)
-
-	// Form a sentence out of the history in the form Message 1, Message 2, and Message 3
-	words := session["history"]
-	l := len(words)
-	wordsForSentence := make([]string, l)
-	copy(wordsForSentence, words)
-	if l > 1 {
-		wordsForSentence[l-1] = "and " + wordsForSentence[l-1]
-	}
-	sentence := strings.Join(wordsForSentence, ", ")
-
-	return fmt.Sprintf("So, you want %s! What else?", strings.ToLower(sentence)), nil
+	return fmt.Sprintf("So, you want %s! What else?", strings.ToLower("blabizoo USING DEF HANDLER !!!")), nil
 }
 
 // withLog Wraps HandlerFuncs to log requests to Stdout
@@ -117,6 +87,8 @@ func handleWelcome(w http.ResponseWriter, r *http.Request) {
 		"uuid":    uuid,
 		"message": WelcomeMessage,
 	})
+
+	sessions[uuid]["state"] = 0
 }
 
 func handleChat(w http.ResponseWriter, r *http.Request) {
@@ -147,6 +119,12 @@ func handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
+
+	// Make sure a state key is defined in the session which points to an int
+	_, stateFound := session["state"]
+	if !stateFound {
+		session["state"] = 0
+	}
 
 	// Make sure a message key is defined in the body of the request
 	_, messageFound := data["message"]
